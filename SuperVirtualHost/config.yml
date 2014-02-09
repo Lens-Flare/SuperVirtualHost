@@ -1,0 +1,30 @@
+server-class: com.lensflare.svh.impl.Server
+load:
+  - com.mysql.jdbc.Driver
+hosts:
+  Minecraft:
+    class: com.lensflare.svh.minecraft.Host
+    host: localhost
+    port: 25565
+    connection-class: com.lensflare.svh.impl.Connection
+    pre-17-ping: example.com
+services:
+  Minecraft:
+    '':
+      name: Minecraft 1.5
+      class: com.lensflare.svh.minecraft.ServicePre17
+      host: localhost
+      port: 25566
+      authenticator: SQL
+    new.example.com:
+      name: Minecraft 1.7
+      class: com.lensflare.svh.minecraft.ServicePost17
+      host: localhost
+      port: 25567
+      authenticator: SQL
+authenticators:
+  SQL:
+    class: com.lensflare.svh.impl.SQLAuthenticator
+    url: jdbc:mysql://example.com/mydatabase
+    query: SELECT COUNT(*) FROM Users WHERE Username = ? AND Service = ? AND Host = ?
+    parameter-order: [user, service-type, service-name]

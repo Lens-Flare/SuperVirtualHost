@@ -1,6 +1,11 @@
-*.class
+# BS
+.DS_Store
 
-# Package Files #
-*.jar
-*.war
-*.ear
+# Eclipse
+.project
+.classpath
+.settings
+
+# Products
+target
+bin

@@ -20,6 +20,12 @@ public class Service implements com.lensflare.svh.Service {
 	private final Server server;
 	
 	/**
+	 * The key.
+	 */
+	@SuppressWarnings("unused")
+	private final String key;
+	
+	/**
 	 * The name.
 	 */
 	private final String name;
@@ -42,16 +48,22 @@ public class Service implements com.lensflare.svh.Service {
 	 * @param config the configuration map
 	 * @throws Exception
 	 */
-	public Service(Server server, String name, String type, Map<?, ?> config) throws Exception {
-		log.info("Setting up the {} service", name);
+	public Service(Server server, String key, String type, Map<?, ?> config) throws Exception {
+		log.info("Setting up the service for {}", key);
 		
 		this.server = server;
-		this.name = name;
+		this.key = key;
 		this.type = type;
+		
+		log.debug("Finding the name");
+		Object obj = config.get("name");
+		if (!(obj instanceof String))
+			throw new Exception("Problem loading configuration: hosts > host > name");
+		this.name = (String) obj;
 		
 		log.debug("Finding the host name");
 		String host;
-		Object obj = config.get("host");
+		obj = config.get("host");
 		if (obj == null)
 			host = "localhost";
 		else if (!(obj instanceof String))
