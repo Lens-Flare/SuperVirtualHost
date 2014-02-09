@@ -10,21 +10,6 @@
 		<version>0.0.1-SNAPSHOT</version>
 	</parent>
 
-	<build>
-		<sourceDirectory>src/main/java</sourceDirectory>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.1</version>
-				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.yaml</groupId>
@@ -40,8 +25,6 @@
 			<groupId>naturalcli</groupId>
 			<artifactId>naturalcli</artifactId>
 			<version>1.2.3</version>
-			<scope>system</scope>
-			<systemPath>${project.basedir}/lib/naturalcli-1.2.3.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
