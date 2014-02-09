@@ -1,5 +1,6 @@
 # BS
 .DS_Store
+*.swp
 
 # Eclipse
 .project

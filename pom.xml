@@ -9,7 +9,7 @@
 
 	<modules>
 		<module>SuperVirtualHost</module>
-		<module>SVHMinecraft</module>
+		<module>extensions</module>
 	</modules>
 
 	<build>
