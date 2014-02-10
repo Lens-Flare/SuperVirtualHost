@@ -23,6 +23,7 @@
 				<configuration>
 					<descriptors>
 						<descriptor>src/main/asm/library.xml</descriptor>
+						<descriptor>src/main/asm/distribution.xml</descriptor>
 					</descriptors>
 				</configuration>
 
@@ -44,6 +45,11 @@
 		<dependency>
 			<groupId>com.lensflare.svh.extensions</groupId>
 			<artifactId>minecraft</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.lensflare.svh.extensions</groupId>
+			<artifactId>starbound</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
