@@ -12,6 +12,7 @@
 	<modules>
 		<module>core</module>
 		<module>extensions</module>
+		<module>amalgamation</module>
 	</modules>
 
 	<build>
