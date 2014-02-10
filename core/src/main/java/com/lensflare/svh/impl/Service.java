@@ -22,7 +22,6 @@ public class Service implements com.lensflare.svh.Service {
 	/**
 	 * The key.
 	 */
-	@SuppressWarnings("unused")
 	private final String key;
 	
 	/**
@@ -86,6 +85,11 @@ public class Service implements com.lensflare.svh.Service {
 	 */
 	protected Server getServer() {
 		return this.server;
+	}
+	
+	@Override
+	public String getKey() {
+		return this.key;
 	}
 
 	@Override

@@ -260,7 +260,7 @@ public class Server implements com.lensflare.svh.Server {
 				
 				log.debug("Instantiating service");
 				Service service = constructor.newInstance(this, _entry.getKey(), entry.getKey(), _entry.getValue());
-				servicesForType.put(service.getName(), service);
+				servicesForType.put(service.getKey(), service);
 			}
 		}
 		

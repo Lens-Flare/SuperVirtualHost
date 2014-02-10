@@ -68,6 +68,11 @@ public class Connection implements com.lensflare.svh.Connection {
 	}
 	
 	@Override
+	public Socket getSocket() {
+		return this.socket;
+	}
+	
+	@Override
 	public byte[] getData() throws IOException {
 		if (this.isForwarding())
 			return null;
@@ -76,6 +81,9 @@ public class Connection implements com.lensflare.svh.Connection {
 		
 		byte[] data = new byte[1024];
 		int len = socket.getInputStream().read(data);
+		if (len < 0)
+			return null;
+		
 		data = Arrays.copyOf(data, len);
 		
 		this.unsentData.push(data);

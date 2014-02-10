@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.Socket;
 
 public interface Connection {
+	public Socket getSocket();
+	
 	public byte[] getData() throws IOException;
 	public byte[] getUnsentData(int index);
 	
