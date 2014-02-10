@@ -4,6 +4,8 @@
 	<artifactId>extensions</artifactId>
 	<groupId>com.lensflare.svh</groupId>
 	
+	<name>SuperVirtualHost :: Extensions</name>
+	
 	<parent>
 		<groupId>com.lensflare</groupId>
 		<artifactId>svh</artifactId>
@@ -13,7 +15,9 @@
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>amalgamation</module>
 		<module>minecraft</module>
+		<module>starbound</module>
 	</modules>
 
 </project>

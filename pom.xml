@@ -4,11 +4,13 @@
 	<artifactId>svh</artifactId>
 	<groupId>com.lensflare</groupId>
 	<version>0.0.1-SNAPSHOT</version>
+	
+	<name>SuperVirtualHost</name>
 
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>SuperVirtualHost</module>
+		<module>core</module>
 		<module>extensions</module>
 	</modules>
 
@@ -38,10 +40,10 @@
 							<mainClass>com.lensflare.svh.Launch</mainClass>
 						</manifest>
 					</archive>
-
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
+					
+					<descriptors>
+						<descriptor>src/main/asm/distribution.xml</descriptor>
+					</descriptors>
 				</configuration>
 
 				<executions>
