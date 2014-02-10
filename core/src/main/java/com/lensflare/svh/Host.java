@@ -1,10 +1,12 @@
 package com.lensflare.svh;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 
 public interface Host {
-	public String getName();
-	public boolean isRunning();
-	public void start() throws IOException;
-	public void stop() throws IOException;
+	String getName();
+	ServerSocket getSocket();
+	boolean isRunning();
+	void start() throws IOException;
+	void stop() throws IOException;
 }

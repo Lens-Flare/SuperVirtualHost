@@ -38,6 +38,11 @@ public class Connection implements com.lensflare.svh.Connection {
 	private Thread a, b;
 	
 	/**
+	 * The socket data will be forwarded to.
+	 */
+	private Socket target = null;
+	
+	/**
 	 * Creates a new connection.
 	 * @param server the originating server
 	 * @param socket the socket
@@ -70,6 +75,11 @@ public class Connection implements com.lensflare.svh.Connection {
 	@Override
 	public Socket getSocket() {
 		return this.socket;
+	}
+	
+	@Override
+	public Socket getTarget() {
+		return this.target;
 	}
 	
 	@Override
@@ -106,28 +116,30 @@ public class Connection implements com.lensflare.svh.Connection {
 	}
 	
 	@Override
-	public void forwardToSocket(final Socket other) throws IOException {
+	public void forwardToSocket(Socket other) throws IOException {
 		forwardUnsentData(other);
 
 		log.info("Starting connection forwarding from {} to {}", socket, other);
+		this.target = other;
+		getServer().registerConnection(this);
 		
-		this.a = new Thread() {
+		this.a = new Thread("fwd") {
 			@Override
 			public void run() {
 				try {
 					byte[] data = new byte[1024];
 					InputStream in = socket.getInputStream();
-					OutputStream out = other.getOutputStream();
+					OutputStream out = target.getOutputStream();
 					
 					int len;
 					while ((len = in.read(data)) > -1)
 						out.write(data, 0, len);
 				} catch (Exception e) {
-					log.catching(Level.WARN, e);
+					log.catching(Level.DEBUG, e);
 				} finally {
 					try {
-						if (!other.isClosed())
-							other.close();
+						if (!target.isClosed())
+							target.close();
 					} catch (IOException e) {
 						log.catching(Level.WARN, e);
 					}
@@ -140,23 +152,23 @@ public class Connection implements com.lensflare.svh.Connection {
 			}
 		};
 		
-		this.b = new Thread() {
+		this.b = new Thread("fwd") {
 			@Override
 			public void run() {
 				try {
 					byte[] data = new byte[1024];
-					InputStream in = other.getInputStream();
+					InputStream in = target.getInputStream();
 					OutputStream out = socket.getOutputStream();
 					
 					int len;
 					while ((len = in.read(data)) > -1)
 						out.write(data, 0, len);
 				} catch (Exception e) {
-					log.catching(Level.WARN, e);
+					log.catching(Level.DEBUG, e);
 				} finally {
 					try {
-						if (!other.isClosed())
-							other.close();
+						if (!target.isClosed())
+							target.close();
 					} catch (IOException e) {
 						log.catching(Level.WARN, e);
 					}
@@ -186,7 +198,10 @@ public class Connection implements com.lensflare.svh.Connection {
 		if (a == null || !a.isAlive())
 			return false;
 		
-		if (b == null || b.isAlive())
+		if (b == null || !b.isAlive())
+			return false;
+		
+		if (target == null || target.isClosed())
 			return false;
 		
 		return isActive();
@@ -199,6 +214,12 @@ public class Connection implements com.lensflare.svh.Connection {
 		
 		log.info("Closing connection from {}", socket);
 		
-		socket.close();
+		if (!socket.isClosed())
+			socket.close();
+		if (target != null && !target.isClosed())
+			target.close();
+		getServer().unregisterConnection(this);
+
+		log.info("Connection closed");
 	}
 }

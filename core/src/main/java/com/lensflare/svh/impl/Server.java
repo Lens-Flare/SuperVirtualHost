@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -19,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
 import com.lensflare.svh.Authenticator;
+import com.lensflare.svh.Connection;
 import com.lensflare.svh.Host;
 import com.lensflare.svh.Service;
 
@@ -163,9 +165,14 @@ public class Server implements com.lensflare.svh.Server {
 	private final Map<String, Map<String, Service>> services = new HashMap<String, Map<String, Service>>();
 	
 	/**
-	 * The map of authenticators
+	 * The map of authenticators.
 	 */
 	private final Map<String, Authenticator> authenticators = new HashMap<String, Authenticator>();
+	
+	/**
+	 * The list of connections.
+	 */
+	private final List<Connection> connections = new CopyOnWriteArrayList<Connection>();
 	
 	/**
 	 * True if the server is running
@@ -296,6 +303,11 @@ public class Server implements com.lensflare.svh.Server {
 	}
 
 	@Override
+	public Host getHost(String name) {
+		return hosts.get(name);
+	}
+
+	@Override
 	public Service getServiceForTypeAndHost(String type, String host) {
 		Map<String, Service> services = this.services.get(type);
 		if (services == null)
@@ -311,6 +323,42 @@ public class Server implements com.lensflare.svh.Server {
 	@Override
 	public Authenticator getAuthenticator(String name) {
 		return authenticators.get(name);
+	}
+
+	@Override
+	public boolean registerConnection(Connection connection) {
+		return connections.add(connection);
+	}
+
+	@Override
+	public boolean unregisterHost(Host host) {
+		for (Map.Entry<String, Host> entry : hosts.entrySet())
+			if (host == entry.getValue()) {
+				hosts.remove(entry.getKey());
+				return true;
+			}
+		return false;
+	}
+
+	@Override
+	public boolean unregisterService(Service service) {
+		for (Map.Entry<String, Map<String, Service>> map : services.entrySet())
+			for (Map.Entry<String, Service> entry : map.getValue().entrySet())
+				if (service == entry.getValue()) {
+					map.getValue().remove(entry.getKey());
+					
+					if (map.getValue().size() == 0)
+						services.remove(map.getKey());
+					
+					return true;
+				}
+		return false;
+	}
+
+	@Override
+	public boolean unregisterConnection(Connection connection) {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 	@Override
@@ -347,5 +395,26 @@ public class Server implements com.lensflare.svh.Server {
 			}
 		
 		log.info("Server stopped");
+	}
+
+	@Override
+	public String status() {
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("Hosts:\n");
+		for (Host host : hosts.values())
+			sb.append("\t" + host.getName() + " on " + host.getSocket() + "\n");
+		
+		for (Map.Entry<String, Map<String, Service>> entry : services.entrySet()) {
+			sb.append(entry.getKey() + " Services:\n");
+			for (Service service : entry.getValue().values())
+				sb.append("\t" + (service.getKey().length() == 0 ? "*" : service.getKey()) + " to " + service.getAddress() + "\n");
+		}
+
+		sb.append("Connections:\n");
+		for (Connection connection : connections)
+			sb.append("\t" + connection.getSocket() + " to " + connection.getTarget() + "\n");
+		
+		return sb.toString();
 	}
 }

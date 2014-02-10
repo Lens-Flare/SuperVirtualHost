@@ -41,7 +41,7 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 	/**
 	 * The connection handling thread.
 	 */
-	private final Thread thread = new Thread(this);
+	private final Thread thread = new Thread(this, "lstn");
 	
 	/**
 	 * The listening socket.
@@ -126,6 +126,11 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 	}
 
 	@Override
+	public ServerSocket getSocket() {
+		return this.socket;
+	}
+
+	@Override
 	public boolean isRunning() {
 		if (socket == null)
 			return false;
@@ -192,6 +197,7 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 		
 		socket.close();
 		this.socket = null;
+		getServer().unregisterHost(this);
 		
 		log.info("Host stopped");
 	}

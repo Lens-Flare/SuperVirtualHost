@@ -4,12 +4,20 @@ import java.io.IOException;
 
 
 public interface Server {
-	public Service getServiceForTypeAndHost(String type, String host);
-	public Authenticator getAuthenticator(String name);
+	Host getHost(String name);
+	Service getServiceForTypeAndHost(String type, String host);
+	Authenticator getAuthenticator(String name);
 	
-	public void addCleanupHook(Runnable routine);
+	boolean registerConnection(Connection connection);
+	boolean unregisterHost(Host host);
+	boolean unregisterService(Service service);
+	boolean unregisterConnection(Connection connection);
+	
+	void addCleanupHook(Runnable routine);
 
 	boolean isRunning();
-	public void start() throws IOException;
-	public void stop();
+	void start() throws IOException;
+	void stop();
+	
+	String status();
 }

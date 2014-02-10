@@ -5,6 +5,7 @@ import java.net.Socket;
 
 public interface Connection {
 	public Socket getSocket();
+	public Socket getTarget();
 	
 	public byte[] getData() throws IOException;
 	public byte[] getUnsentData(int index);

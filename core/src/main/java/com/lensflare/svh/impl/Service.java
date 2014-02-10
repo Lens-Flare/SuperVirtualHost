@@ -48,7 +48,7 @@ public class Service implements com.lensflare.svh.Service {
 	 * @throws Exception
 	 */
 	public Service(Server server, String key, String type, Map<?, ?> config) throws Exception {
-		log.info("Setting up the service for {}", key);
+		log.info("Setting up the service for {}", key.length() == 0 ? "*" : key);
 		
 		this.server = server;
 		this.key = key;
@@ -102,6 +102,11 @@ public class Service implements com.lensflare.svh.Service {
 		return this.type;
 	}
 	
+	@Override
+	public InetSocketAddress getAddress() {
+		return this.addr;
+	}
+
 	@Override
 	public void handleConnection(Connection connection) throws IOException {
 		handleConnection(connection, getNewConnection());
