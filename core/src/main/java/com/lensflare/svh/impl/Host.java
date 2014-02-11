@@ -49,6 +49,11 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 	private ServerSocket socket = null;
 	
 	/**
+	 * True if the host is accepting connections.
+	 */
+	private boolean running = false;
+	
+	/**
 	 * Creates a new host.
 	 * @param server the originating server
 	 * @param name the name
@@ -84,7 +89,7 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 		String className;
 		obj = config.get("connection-class");
 		if (obj == null)
-			className = "com.lensflare.svh.impl.Connection";
+			className = com.lensflare.svh.impl.Connection.class.getSimpleName();
 		else if (!(obj instanceof String))
 			throw new Exception("Problem loading configuration: hosts > host > host");
 		else
@@ -129,9 +134,16 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 	public ServerSocket getSocket() {
 		return this.socket;
 	}
+	
+	protected synchronized boolean _running() {
+		return this.running;
+	}
 
 	@Override
 	public boolean isRunning() {
+		if (!_running())
+			return false;
+		
 		if (socket == null)
 			return false;
 		
@@ -157,12 +169,13 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 	}
 
 	@Override
-	public void start() throws IOException {
+	public synchronized void start() throws IOException {
 		if (isRunning())
 			return;
 		
 		log.info("Starting the {} host on {}", name, addr);
 		
+		this.running = true;
 		this.socket = new ServerSocket(addr.getPort(), 10, addr.getAddress());
 		thread.start();
 		
@@ -184,20 +197,21 @@ public class Host implements com.lensflare.svh.Host, Runnable {
 				log.debug("Accepting a connection");
 				getServer().getServiceForTypeAndHost(getName(), "").handleConnection(accept());
 			} catch (Exception e) {
-				log.catching(Level.WARN, e);
+				log.catching(_running() ? Level.DEBUG : Level.WARN, e);
 			}
 	}
 
 	@Override
-	public void stop() throws IOException {
+	public synchronized void stop() throws IOException {
 		if (!isRunning())
 			return;
 
 		log.info("Stopping the {} host on {}", name, addr);
 		
-		socket.close();
+		if (!socket.isClosed())
+			socket.close();
 		this.socket = null;
-		getServer().unregisterHost(this);
+		this.running = false;
 		
 		log.info("Host stopped");
 	}

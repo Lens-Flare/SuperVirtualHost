@@ -1,4 +1,6 @@
 server-class: com.lensflare.svh.impl.Server
+commands:
+  - com.lensflare.svh.cmd.ServerCommand
 load:
   - com.mysql.jdbc.Driver
 hosts:

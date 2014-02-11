@@ -7,22 +7,33 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.naturalcli.Command;
+import org.naturalcli.ICommandExecutor;
+import org.naturalcli.InvalidSyntaxException;
 import org.yaml.snakeyaml.Yaml;
 
 import com.lensflare.svh.Authenticator;
 import com.lensflare.svh.Connection;
 import com.lensflare.svh.Host;
 import com.lensflare.svh.Service;
+import com.lensflare.svh.anno.Help;
+import com.lensflare.svh.anno.SeeAlso;
+import com.lensflare.svh.anno.Syntax;
+import com.lensflare.svh.cmd.ServerCommand;
 
 public class Server implements com.lensflare.svh.Server {
 	private static final Logger log = LogManager.getLogger();
@@ -96,6 +107,14 @@ public class Server implements com.lensflare.svh.Server {
 			if (obj != null && !(obj instanceof String))
 				throw new Exception("Problem loading configuration: server-class");
 			String className = (String) obj;
+			
+			log.debug("Finding commands");
+			obj = map.get("commands");
+			if (obj == null)
+				obj = Arrays.asList(ServerCommand.class.getPackage().getName());
+			else if (!(obj instanceof List))
+				throw new Exception("Problem loading configuration: commands");
+			List<?> commands = (List<?>) obj;
 
 			log.debug("Finding load");
 			obj = map.get("load");
@@ -136,12 +155,12 @@ public class Server implements com.lensflare.svh.Server {
 				throw new Exception("Problem loading configuration: Invalid class name " + className);
 
 			log.debug("Finding constructor for server-class");
-			Constructor<? extends Server> constructor = theClass.getConstructor(List.class, Map.class, Map.class, Map.class);
+			Constructor<? extends Server> constructor = theClass.getConstructor(List.class, List.class, Map.class, Map.class, Map.class);
 			if (constructor == null)
 				throw new Exception("Problem loading configuration: No appropriate constructor for class " + className);
 
 			log.debug("Instantiating server");
-			return constructor.newInstance(load, hosts, services, authenticators);
+			return constructor.newInstance(commands, load, hosts, services, authenticators);
 		} catch (Exception e) {
 			log.fatal("Caught exception, dying",  e);
 			System.exit(-1);
@@ -153,6 +172,11 @@ public class Server implements com.lensflare.svh.Server {
 	 * A stack of hooks that will be run when the server stops.
 	 */
 	private final List<Runnable> cleanupHooks = new ArrayList<Runnable>();
+	
+	/**
+	 * The list of command packages
+	 */
+	private final List<String> commands = new ArrayList<String>();
 	
 	/**
 	 * The map of hosts.
@@ -188,8 +212,15 @@ public class Server implements com.lensflare.svh.Server {
 	 * @throws Exception
 	 */
 	@SuppressWarnings("unchecked")
-	public Server(List<?> load, Map<?, ?> hostsInfo, Map<?, ?> servicesInfo, Map<?, ?> authenticatorsInfo) throws Exception {
+	public Server(List<?> commands, List<?> load, Map<?, ?> hostsInfo, Map<?, ?> servicesInfo, Map<?, ?> authenticatorsInfo) throws Exception {
 		log.info("Setting up server");
+		
+		log.debug("Saving command packages");
+		for (Object obj : commands) {
+			if (!(obj instanceof String))
+				throw new Exception("Problem loading configuration: commands > command");
+			this.commands.add((String) obj);
+		}
 		
 		log.info("Loading classes");
 		for (Object obj : load) {
@@ -210,7 +241,7 @@ public class Server implements com.lensflare.svh.Server {
 			log.debug("Finding host class");
 			Object className = ((Map<?, ?>) entry.getValue()).get("class");
 			if (className == null)
-				className = "con.lensflare.svh.impl.Host";
+				className = com.lensflare.svh.impl.Host.class.getSimpleName();
 			else if (!(className instanceof String))
 				throw new Exception("Problem loading configuration: hosts > host > class");
 			
@@ -251,7 +282,7 @@ public class Server implements com.lensflare.svh.Server {
 				log.debug("Finding service class");
 				Object className = ((Map<?, ?>) _entry.getValue()).get("class");
 				if (className == null)
-					className = "com.lensflare.svh.impl.Service";
+					className = com.lensflare.svh.impl.Service.class.getSimpleName();
 				else if (!(className instanceof String))
 					throw new Exception("Problem loading configuration: services > service > class");
 				
@@ -326,39 +357,84 @@ public class Server implements com.lensflare.svh.Server {
 	}
 
 	@Override
+	public Set<Command> collectComands() throws ClassNotFoundException {
+		log.info("Collecting commands");
+		
+		log.debug("Loading classes");
+		List<Class<? extends ICommandExecutor>> classes = new ArrayList<Class<? extends ICommandExecutor>>();
+		for (String name : commands) {
+			log.debug("Loading class {}", name);
+			Class<?> clazz = Class.forName(name);
+			if (!ICommandExecutor.class.isAssignableFrom(clazz)) {
+				log.error("Command {} is not an instance of {}", clazz, ICommandExecutor.class);
+				continue;
+			}
+			@SuppressWarnings("unchecked")
+			Class<? extends ICommandExecutor> iclazz = (Class<? extends ICommandExecutor>)clazz;
+			classes.add(iclazz);
+		}
+		
+		log.debug("Building command set");
+		Set<Command> cs = new HashSet<Command>();
+		while (classes.size() > 0) {
+			Class<? extends ICommandExecutor> clazz = classes.remove(0);
+
+			log.debug("Processing @SeeAlso for {}", clazz);
+			SeeAlso seealso = clazz.getAnnotation(SeeAlso.class);
+			if (seealso != null)
+				classes.addAll(Arrays.asList(seealso.value()));
+			
+			if (Modifier.isAbstract(clazz.getModifiers())) {
+				log.debug("Class {} is abstract, moving on", clazz.getCanonicalName());
+				continue;
+			}
+			
+			log.debug("Extracting @Syntax and @Help from {}", clazz);
+			Syntax syntax = clazz.getAnnotation(Syntax.class);
+			Help help = clazz.getAnnotation(Help.class);
+			if (syntax == null) {
+				log.error("Command {} does not have a {} annotation", clazz, Syntax.class);
+				continue;
+			}
+			
+			log.debug("Looking for constructors for {}", clazz);
+			Constructor<? extends ICommandExecutor> constructorA = null;
+			Constructor<? extends ICommandExecutor> constructorB = null;
+			try { constructorA = clazz.getConstructor(com.lensflare.svh.Server.class); } catch (Exception e) { }
+			try { constructorB = clazz.getConstructor(); } catch (Exception e) { }
+			if (constructorA == null && constructorB == null) {
+				log.error("Command {} must have a constructor with no arguments or with {} as the only argument", clazz, com.lensflare.svh.Server.class);
+				continue;
+			}
+			
+			log.debug("Instantiating {}", clazz);
+			ICommandExecutor instance = null;
+			try {
+				instance = constructorA != null ? constructorA.newInstance(this) : constructorB.newInstance();
+			} catch (Exception e) {
+				log.error("Failed to instantiate " + clazz, e);
+				continue;
+			}
+			
+			log.debug("Creating command for {}", clazz);
+			try {
+				cs.add(new Command(syntax.value(), help == null ? "" : help.value(), instance));
+			} catch (InvalidSyntaxException e) {
+				log.error("Failed to create command for " + clazz, e);
+			}
+		}
+		
+		return cs;
+	}
+
+	@Override
 	public boolean registerConnection(Connection connection) {
 		return connections.add(connection);
 	}
 
 	@Override
-	public boolean unregisterHost(Host host) {
-		for (Map.Entry<String, Host> entry : hosts.entrySet())
-			if (host == entry.getValue()) {
-				hosts.remove(entry.getKey());
-				return true;
-			}
-		return false;
-	}
-
-	@Override
-	public boolean unregisterService(Service service) {
-		for (Map.Entry<String, Map<String, Service>> map : services.entrySet())
-			for (Map.Entry<String, Service> entry : map.getValue().entrySet())
-				if (service == entry.getValue()) {
-					map.getValue().remove(entry.getKey());
-					
-					if (map.getValue().size() == 0)
-						services.remove(map.getKey());
-					
-					return true;
-				}
-		return false;
-	}
-
-	@Override
 	public boolean unregisterConnection(Connection connection) {
-		// TODO Auto-generated method stub
-		return false;
+		return connections.remove(connection);
 	}
 
 	@Override
@@ -373,16 +449,24 @@ public class Server implements com.lensflare.svh.Server {
 
 	@Override
 	public void start() throws IOException {
+		if (isRunning())
+			return;
+		
 		this.running = true;
 		
 		log.info("Starting server");
 		
 		for (Host host : hosts.values())
 			host.start();
+		
+		log.info("Server started");
 	}
 	
 	@Override
 	public void stop() {
+		if (!isRunning())
+			return;
+		
 		this.running = false;
 		
 		log.info("Stopping server");
@@ -396,14 +480,48 @@ public class Server implements com.lensflare.svh.Server {
 		
 		log.info("Server stopped");
 	}
+	
+	@Override
+	public void exit(int status) {
+		stop();
+		log.info("Exiting");
+		System.exit(status);
+	}
 
 	@Override
-	public String status() {
+	public String status(boolean detail) {
+		if (!isRunning())
+			return "Server is off";
+		else if (detail)
+			return statusDetailed();
+		else
+			return statusSimple();
+	}
+	
+	private String statusSimple() {
+		int activeHosts = 0;
+		for (Host host : hosts.values())
+			if (host.isRunning())
+				activeHosts++;
+		
+		int numServices = 0;
+		for (Map<String, Service> map : services.values())
+			numServices += map.size();
+		
+		int forwardingConnections = 0;
+		for (Connection connection : connections)
+			if (connection.isForwarding())
+				forwardingConnections++;
+		
+		return activeHosts + " active hosts, " + numServices + " services, " + forwardingConnections + " forwarding connections";
+	}
+	
+	private String statusDetailed() {
 		StringBuilder sb = new StringBuilder();
 		
 		sb.append("Hosts:\n");
 		for (Host host : hosts.values())
-			sb.append("\t" + host.getName() + " on " + host.getSocket() + "\n");
+			sb.append("\t" + host.getName() + " on " + host.getSocket() + (host.isRunning() ? "" : "(inactive)") + "\n");
 		
 		for (Map.Entry<String, Map<String, Service>> entry : services.entrySet()) {
 			sb.append(entry.getKey() + " Services:\n");

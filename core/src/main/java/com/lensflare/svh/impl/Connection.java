@@ -43,6 +43,11 @@ public class Connection implements com.lensflare.svh.Connection {
 	private Socket target = null;
 	
 	/**
+	 * True if the connection has been terminated
+	 */
+	private boolean terminated = false;
+	
+	/**
 	 * Creates a new connection.
 	 * @param server the originating server
 	 * @param socket the socket
@@ -70,6 +75,10 @@ public class Connection implements com.lensflare.svh.Connection {
 	 */
 	protected Server getServer() {
 		return this.server;
+	}
+	
+	protected boolean isTerminated() {
+		return this.terminated;
 	}
 	
 	@Override
@@ -135,7 +144,7 @@ public class Connection implements com.lensflare.svh.Connection {
 					while ((len = in.read(data)) > -1)
 						out.write(data, 0, len);
 				} catch (Exception e) {
-					log.catching(Level.DEBUG, e);
+					log.catching(isTerminated() ? Level.DEBUG : Level.WARN, e);
 				} finally {
 					try {
 						if (!target.isClosed())
@@ -164,7 +173,7 @@ public class Connection implements com.lensflare.svh.Connection {
 					while ((len = in.read(data)) > -1)
 						out.write(data, 0, len);
 				} catch (Exception e) {
-					log.catching(Level.DEBUG, e);
+					log.catching(isTerminated() ? Level.DEBUG : Level.WARN, e);
 				} finally {
 					try {
 						if (!target.isClosed())
@@ -219,6 +228,7 @@ public class Connection implements com.lensflare.svh.Connection {
 		if (target != null && !target.isClosed())
 			target.close();
 		getServer().unregisterConnection(this);
+		this.terminated = true;
 
 		log.info("Connection closed");
 	}

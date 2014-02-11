@@ -38,7 +38,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>com.lensflare.svh.Launch</mainClass>
+							<mainClass>com.lensflare.svh.cli.Launch</mainClass>
 						</manifest>
 					</archive>
 					

@@ -113,7 +113,7 @@ public class Host extends com.lensflare.svh.impl.Host {
 				log.debug("Passing off connection");
 				service.handleConnection(connection);
 			} catch (Exception e) {
-				log.catching(Level.WARN, e);
+				log.catching(_running() ? Level.DEBUG : Level.WARN, e);
 			}
 	}
 }
